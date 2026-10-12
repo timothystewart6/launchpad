@@ -22,4 +22,30 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:latest
+        # Pin to a major tag so a pod restart can't silently pull a new major.
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+        # Limits so a leak or spike can't starve the node.
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+            ephemeral-storage: "64Mi"
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+            ephemeral-storage: "256Mi"
+        # Probes so Kubernetes can tell a wedged pod from a healthy one and
+        # hold traffic until it's actually serving.
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 10
