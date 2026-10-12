@@ -23,15 +23,37 @@ spec:
           requests:
             memory: "256Mi"
             cpu: "100m"
-            
-          limits: 
+            ephemeral-storage: "128Mi"
+          limits:
             memory: "512Mi"
-            cpu: "250m" 
+            cpu: "250m"
+            ephemeral-storage: "512Mi"
         env:
         - name: UPTIME_KUMA_PORT
           value: "3001"
-        ports: 
+        ports:
           - containerPort: 3001
+        # Probes so Kubernetes can route and restart safely. Liveness is a cheap
+        # TCP check; readiness confirms the web UI is actually serving.
+        livenessProbe:
+          tcpSocket:
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # Defense-in-depth that a Node web app doesn't need to give up:
+        # no privilege escalation, no Linux capabilities, default seccomp.
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/data
           name: uptime-kuma-content
@@ -39,4 +61,3 @@ spec:
       - name: uptime-kuma-content
         persistentVolumeClaim:
           claimName:  uptime-kuma-claim
-        
